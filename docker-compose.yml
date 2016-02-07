@@ -1,0 +1,78 @@
+application:
+    image: busybox
+    volumes:
+        - ./symfony:/var/www/symfony
+        - ./logs/symfony:/var/www/symfony/app/logs
+        - ./logs/php:/var/log/php-fpm
+
+redis:
+  image: redis
+
+db:
+    image: postgres:9.4
+    environment:
+        POSTGRES_DB: db
+        POSTGRES_USER: root 
+        POSTGRES_PASSWORD: a
+    volumes:
+        - ./data/postgres:/var/lib/postgresql/data
+    tty: true
+
+php:
+    build: ./opt/php-fpm
+    ports:
+        - 9000:9000
+    volumes_from:
+        - application
+    volumes:
+        - ~/.ssh/id_rsa:/home/www-data/.ssh/id_rsa
+    tty: true
+    links:
+        - db
+        - redis 
+        - elk   
+        - beanstalkd   
+        - mailcatcher
+
+nginx:
+    build: ./opt/nginx
+    ports:
+        - 80:80
+    links:
+        - php
+    volumes_from:
+        - application
+    volumes:
+        - ./logs/nginx/:/var/log/nginx
+
+elk:
+    image: willdurand/elk
+    ports:
+        - 81:80
+        - 9200:9200
+    volumes:
+        - ./opt/elk/logstash:/etc/logstash
+        - ./opt/elk/logstash/patterns:/opt/logstash/patterns
+        - ./data/elastic:/data
+    volumes_from:
+        - application
+
+beanstalkd:
+    build: ./opt/beanstalkd
+    volumes_from:
+        - application
+    ports:
+        - 11300:11300
+
+nodejs:
+    build: ./opt/nodejs
+
+mailcatcher:
+    build: ./opt/mailcatcher
+    ports:
+        - 25:1025
+        - 1080:1080
+    
+    
+    
+
